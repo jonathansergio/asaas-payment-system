@@ -3,17 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Services\AsaasService;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Services\Asaas\CustomerService;
+use App\Services\Asaas\PaymentService;
 
 class CheckoutController extends Controller
 {
-    public function showForm()
+    public function showForm(): View|Application|Factory
     {
         return view('checkout');
     }
 
-    public function process(Request $request, AsaasService $asaas)
+    public function process(Request $request, CustomerService $customerService, PaymentService $paymentService): Factory|Application|View|RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required',
@@ -31,7 +36,10 @@ class CheckoutController extends Controller
                 'credit_card_cvv' => 'required',
                 'installment_count' => 'required|integer|min:1|max:12',
                 'postal_code' => 'required',
+                'address' => 'required',
                 'address_number' => 'required',
+                'city' => 'required',
+                'state' => 'required',
                 'address_complement' => 'nullable',
                 'phone' => 'required',
             ]);
@@ -56,21 +64,20 @@ class CheckoutController extends Controller
             $customer = $existingByCpf;
         }
 
-        $customerResponse = $asaas->createCustomer([
+        $customerResponse = $customerService->create([
             'name' => $customer->name,
             'email' => $customer->email,
             'cpfCnpj' => $customer->cpf_cnpj,
         ]);
 
-        if (!$customerResponse->successful()) {
-//            dd($customerResponse->json());
-            $errors = collect($customerResponse->json()['errors'] ?? [])
+        if (!$customerResponse['success']) {
+            $errors = collect($customerResponse['data']['errors'] ?? [])
                 ->pluck('description')
                 ->implode(' ');
             return back()->withErrors($errors ?: 'Erro ao criar cliente no Asaas.');
         }
 
-        $customerAsaasId = $customerResponse->json()['id'];
+        $customerAsaasId = $customerResponse['data']['id'];
 
         $paymentPayload = [
             'customer' => $customerAsaasId,
@@ -105,33 +112,32 @@ class CheckoutController extends Controller
                 'address' => $request->address,
                 'addressNumber' => $request->address_number,
                 'addressComplement' => $request->address_complement,
+                'city' => $request->city,
+                'state' => $request->state,
                 'phone' => preg_replace('/\D/', '', $request->phone),
             ];
         }
 
-        $paymentResponse = $asaas->createPayment($paymentPayload);
+        $paymentResponse = $paymentService->create($paymentPayload);
 
-        if (!$paymentResponse->successful()) {
-            dd($paymentResponse->json());
-            $errors = collect($paymentResponse->json()['errors'] ?? [])
+        if (!$paymentResponse['success']) {
+            $errors = collect($paymentResponse['data']['errors'] ?? [])
                 ->pluck('description')
                 ->implode(' ');
             return back()->withErrors($errors ?: 'Erro ao criar pagamento no Asaas.');
         }
 
-        $paymentData = $paymentResponse->json();
+        $paymentData = $paymentResponse['data'];
+        $billingResponse = $paymentService->getBillingInfo($paymentData['id']);
 
-        $billingResponse = $asaas->getBillingInfo($paymentData['id']);
-
-        if (!$billingResponse->successful()) {
-            dd($billingResponse->json());
-            $errors = collect($billingResponse->json()['errors'] ?? [])
+        if (!$billingResponse['success']) {
+            $errors = collect($billingResponse['data']['errors'] ?? [])
                 ->pluck('description')
                 ->implode(' ');
             return back()->withErrors($errors ?: 'Erro ao buscar informações de cobrança no Asaas.');
         }
 
-        $billingData = $billingResponse->json();
+        $billingData = $billingResponse['data'];
 
         return view('thanks', [
             'paymentData' => $paymentData,
