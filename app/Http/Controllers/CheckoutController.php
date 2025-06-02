@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Models\Payment;
 use App\Services\AsaasService;
 use Illuminate\Http\Request;
 
@@ -30,6 +29,7 @@ class CheckoutController extends Controller
                 'credit_card_number' => 'required',
                 'credit_card_expiry' => 'required',
                 'credit_card_cvv' => 'required',
+                'installment_count' => 'required|integer|min:1|max:12',
             ]);
         }
 
@@ -46,7 +46,11 @@ class CheckoutController extends Controller
 
         if (!$customerResponse->successful()) {
             dd($customerResponse->json());
-            return back()->withErrors('Erro ao criar cliente no Asaas.');
+            $errors = collect($customerResponse->json()['errors'] ?? [])
+                ->pluck('description')
+                ->implode(' ');
+
+            return back()->withErrors($errors ?: 'Erro ao criar cliente no Asaas.');
         }
 
         $customerAsaasId = $customerResponse->json()['id'];
@@ -71,28 +75,40 @@ class CheckoutController extends Controller
             $paymentPayload['creditCardHolderInfo'] = [
                 'name' => $customer->name,
                 'email' => $customer->email,
-                'cpfCnpj' => $customer->cpf_cnpj,
-                'postalCode' => '86010110',
-                'addressNumber' => '123',
-                'addressComplement' => 'Apto 45',
+                'cpfCnpj' => $customer->cpf_cnpj
             ];
+            $installmentCount = (int) $request->input('installment_count', 1);
+            $paymentPayload['installmentCount'] = $installmentCount;
+
+            if ($installmentCount > 1) {
+                $paymentPayload['installmentValue'] = round($validated['value'] / $installmentCount, 2);
+            }
         }
 
         $paymentResponse = $asaas->createPayment($paymentPayload);
 
         if (!$paymentResponse->successful()) {
             dd($paymentResponse->json());
-            return back()->withErrors('Erro ao criar pagamento no Asaas.');
+            $errors = collect($paymentResponse->json()['errors'] ?? [])
+                ->pluck('description')
+                ->implode(' ');
+
+            return back()->withErrors($errors ?: 'Erro ao criar pagamento no Asaas.');
         }
 
         $paymentData = $paymentResponse->json();
 
-        // 🔥 Consulta o billingInfo para obter QRCode Pix, boleto, etc.
         $billingResponse = $asaas->getBillingInfo($paymentData['id']);
 
         if (!$billingResponse->successful()) {
             dd($billingResponse->json());
-            return back()->withErrors('Erro ao buscar informações de cobrança no Asaas.');
+            if (!$billingResponse->successful()) {
+                $errors = collect($billingResponse->json()['errors'] ?? [])
+                    ->pluck('description')
+                    ->implode(' ');
+
+                return back()->withErrors($errors ?: 'Erro ao buscar informações de cobrança no Asaas.');
+            }
         }
 
         $billingData = $billingResponse->json();

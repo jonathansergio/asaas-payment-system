@@ -24,7 +24,6 @@
 
         @elseif($paymentData['billingType'] === 'PIX' && isset($billingData['pix']))
             <h4>Pagamento via Pix</h4>
-            <p>QR Code do Pix:</p>
 
             @if(isset($billingData['pix']['encodedImage']))
                 <img src="data:image/png;base64,{{ $billingData['pix']['encodedImage'] }}" alt="QR Code PIX">
@@ -36,7 +35,7 @@
                 </p>
             @endif
 
-            <p>Copia e Cola:</p>
+            <p>Código Copia e Cola:</p>
             <textarea class="form-control" rows="3">
                         {{ $billingData['pix']['payload'] ?? 'Código não disponível' }}
             </textarea>
