@@ -48,20 +48,20 @@ class CheckoutController extends Controller
         ]);
 
         if (!$asaasCustomer['success']) {
-            return back()->withErrors($this->extractErrors($asaasCustomer['data']));
+            return back()->withErrors($this->extractErrors($paymentResponse['data'] ?? []));
         }
 
         $paymentPayload = $this->buildPaymentPayload($request, $validated, $customer, $asaasCustomer['data']['id']);
         $paymentResponse = $this->paymentService->create($paymentPayload);
 
         if (!$paymentResponse['success']) {
-            return back()->withErrors($this->extractErrors($paymentResponse['data']));
+            return back()->withErrors($this->extractErrors($paymentResponse['data'] ?? []));
         }
 
         $billingResponse = $this->paymentService->getBillingInfo($paymentResponse['data']['id']);
 
         if (!$billingResponse['success']) {
-            return back()->withErrors($this->extractErrors($billingResponse['data']));
+            return back()->withErrors($this->extractErrors($paymentResponse['data'] ?? []));
         }
 
         $this->storePayment($customer, $validated, $paymentResponse['data'], $billingResponse['data']);
@@ -186,8 +186,12 @@ class CheckoutController extends Controller
         ]);
     }
 
-    private function extractErrors(array $response): array
+    private function extractErrors(array $response = []): array
     {
+        if (empty($response)) {
+            return ['Erro desconhecido'];
+        }
+
         return collect($response['errors'] ?? [$response['error'] ?? 'Erro desconhecido'])
             ->pluck('description')
             ->toArray();
