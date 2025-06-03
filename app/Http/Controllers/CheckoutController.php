@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CheckoutRequest;
+use App\Http\Requests\CreditCardRequest;
 use App\Models\Customer;
 use App\Models\Payment;
 use App\Services\Asaas\CustomerService;
@@ -28,12 +30,13 @@ class CheckoutController extends Controller
         return view('checkout');
     }
 
-    public function process(Request $request): View|Factory|Application|RedirectResponse
+    public function process(CheckoutRequest $request): View|Factory|Application|RedirectResponse
     {
-        $validated = $this->validateBaseFields($request);
+        $validated = $request->validated();
 
         if ($validated['payment_method'] === 'CREDIT_CARD') {
-            $this->validateCreditCardFields($request);
+            $cardRequest = app(CreditCardRequest::class);
+            $cardRequest->setContainer(app())->validateResolved();
         }
 
         $customer = $this->resolveOrCreateCustomer($validated);
@@ -69,35 +72,6 @@ class CheckoutController extends Controller
         return view('thanks', [
             'paymentData' => $paymentResponse['data'],
             'billingData' => $billingResponse['data']
-        ]);
-    }
-
-    private function validateBaseFields(Request $request): array
-    {
-        return $request->validate([
-            'name' => 'required',
-            'email' => 'required|email',
-            'cpf_cnpj' => 'required',
-            'value' => 'required|numeric',
-            'payment_method' => 'required|in:BOLETO,CREDIT_CARD,PIX',
-        ]);
-    }
-
-    private function validateCreditCardFields(Request $request): void
-    {
-        $request->validate([
-            'credit_card_holder_name' => 'required',
-            'credit_card_number' => 'required',
-            'credit_card_expiry' => 'required',
-            'credit_card_cvv' => 'required',
-            'installment_count' => 'required|integer|min:1|max:12',
-            'postal_code' => 'required',
-            'address' => 'required',
-            'address_number' => 'required',
-            'city' => 'required',
-            'state' => 'required',
-            'address_complement' => 'nullable',
-            'phone' => 'required',
         ]);
     }
 
