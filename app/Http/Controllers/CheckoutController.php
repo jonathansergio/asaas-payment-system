@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\Payment;
 use App\Services\Asaas\CustomerService;
 use App\Services\Asaas\PaymentService;
 use Illuminate\Http\Request;
@@ -62,6 +63,8 @@ class CheckoutController extends Controller
         if (!$billingResponse['success']) {
             return back()->withErrors($this->extractErrors($billingResponse['data']));
         }
+
+        $this->storePayment($customer, $validated, $paymentResponse['data'], $billingResponse['data']);
 
         return view('thanks', [
             'paymentData' => $paymentResponse['data'],
@@ -168,6 +171,19 @@ class CheckoutController extends Controller
         }
 
         return $payload;
+    }
+
+    private function storePayment(Customer $customer, array $validated, array $paymentData, array $billingData): void
+    {
+        Payment::create([
+            'customer_id'    => $customer->id,
+            'value'          => $validated['value'],
+            'payment_method' => $validated['payment_method'],
+            'status'         => $paymentData['status'],
+            'invoice_url'    => $paymentData['invoiceUrl'] ?? null,
+            'pix_qr_code'    => $billingData['pix']['encodedImage'] ?? null,
+            'pix_code'       => $billingData['pix']['payload'] ?? null,
+        ]);
     }
 
     private function extractErrors(array $response): array
