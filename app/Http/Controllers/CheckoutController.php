@@ -3,84 +3,133 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use Illuminate\Contracts\View\Factory;
-use Illuminate\Contracts\View\View;
-use Illuminate\Foundation\Application;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use App\Services\Asaas\CustomerService;
 use App\Services\Asaas\PaymentService;
+use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\RedirectResponse;
 
 class CheckoutController extends Controller
 {
-    public function showForm(): View|Application|Factory
+    protected CustomerService $customerService;
+    protected PaymentService $paymentService;
+
+    public function __construct(CustomerService $customerService, PaymentService $paymentService)
+    {
+        $this->customerService = $customerService;
+        $this->paymentService = $paymentService;
+    }
+
+    public function showForm(): View|Factory|Application
     {
         return view('checkout');
     }
 
-    public function process(Request $request, CustomerService $customerService, PaymentService $paymentService): Factory|Application|View|RedirectResponse
+    public function process(Request $request): View|Factory|Application|RedirectResponse
     {
-        $validated = $request->validate([
+        $validated = $this->validateBaseFields($request);
+
+        if ($validated['payment_method'] === 'CREDIT_CARD') {
+            $this->validateCreditCardFields($request);
+        }
+
+        $customer = $this->resolveOrCreateCustomer($validated);
+        if ($customer instanceof RedirectResponse) {
+            return $customer;
+        }
+
+        $asaasCustomer = $this->customerService->create([
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'cpfCnpj' => $customer->cpf_cnpj
+        ]);
+
+        if (!$asaasCustomer['success']) {
+            return back()->withErrors($this->extractErrors($asaasCustomer['data']));
+        }
+
+        $paymentPayload = $this->buildPaymentPayload($request, $validated, $customer, $asaasCustomer['data']['id']);
+        $paymentResponse = $this->paymentService->create($paymentPayload);
+
+        if (!$paymentResponse['success']) {
+            return back()->withErrors($this->extractErrors($paymentResponse['data']));
+        }
+
+        $billingResponse = $this->paymentService->getBillingInfo($paymentResponse['data']['id']);
+
+        if (!$billingResponse['success']) {
+            return back()->withErrors($this->extractErrors($billingResponse['data']));
+        }
+
+        return view('thanks', [
+            'paymentData' => $paymentResponse['data'],
+            'billingData' => $billingResponse['data']
+        ]);
+    }
+
+    private function validateBaseFields(Request $request): array
+    {
+        return $request->validate([
             'name' => 'required',
             'email' => 'required|email',
             'cpf_cnpj' => 'required',
             'value' => 'required|numeric',
             'payment_method' => 'required|in:BOLETO,CREDIT_CARD,PIX',
         ]);
+    }
 
-        if ($validated['payment_method'] === 'CREDIT_CARD') {
-            $request->validate([
-                'credit_card_holder_name' => 'required',
-                'credit_card_number' => 'required',
-                'credit_card_expiry' => 'required',
-                'credit_card_cvv' => 'required',
-                'installment_count' => 'required|integer|min:1|max:12',
-                'postal_code' => 'required',
-                'address' => 'required',
-                'address_number' => 'required',
-                'city' => 'required',
-                'state' => 'required',
-                'address_complement' => 'nullable',
-                'phone' => 'required',
-            ]);
-        }
+    private function validateCreditCardFields(Request $request): void
+    {
+        $request->validate([
+            'credit_card_holder_name' => 'required',
+            'credit_card_number' => 'required',
+            'credit_card_expiry' => 'required',
+            'credit_card_cvv' => 'required',
+            'installment_count' => 'required|integer|min:1|max:12',
+            'postal_code' => 'required',
+            'address' => 'required',
+            'address_number' => 'required',
+            'city' => 'required',
+            'state' => 'required',
+            'address_complement' => 'nullable',
+            'phone' => 'required',
+        ]);
+    }
 
-        $existingByCpf = Customer::where('cpf_cnpj', $validated['cpf_cnpj'])->first();
-        $existingByEmail = Customer::where('email', $validated['email'])->first();
+    private function resolveOrCreateCustomer(array $data): Customer|RedirectResponse
+    {
+        $existingByCpf = Customer::where('cpf_cnpj', $data['cpf_cnpj'])->first();
+        $existingByEmail = Customer::where('email', $data['email'])->first();
 
         if (!$existingByCpf && !$existingByEmail) {
-            $customer = Customer::create([
-                'cpf_cnpj' => $validated['cpf_cnpj'],
-                'name' => $validated['name'],
-                'email' => $validated['email'],
+            return Customer::create([
+                'cpf_cnpj' => $data['cpf_cnpj'],
+                'name' => $data['name'],
+                'email' => $data['email'],
             ]);
-        } elseif ($existingByEmail && !$existingByCpf) {
+        }
+
+        if ($existingByEmail && !$existingByCpf) {
             return back()->withErrors('Já existe um usuário com este e-mail.');
-        } elseif ($existingByCpf && !$existingByEmail) {
+        }
+
+        if ($existingByCpf && !$existingByEmail) {
             return back()->withErrors('Já existe um usuário com este CPF/CNPJ.');
-        } elseif ($existingByCpf->email !== $validated['email']) {
+        }
+
+        if ($existingByCpf->email !== $data['email']) {
             return back()->withErrors('O CPF informado está associado a outro e-mail.');
-        } else {
-            $customer = $existingByCpf;
         }
 
-        $customerResponse = $customerService->create([
-            'name' => $customer->name,
-            'email' => $customer->email,
-            'cpfCnpj' => $customer->cpf_cnpj,
-        ]);
+        return $existingByCpf;
+    }
 
-        if (!$customerResponse['success']) {
-            $errors = collect($customerResponse['data']['errors'] ?? [])
-                ->pluck('description')
-                ->implode(' ');
-            return back()->withErrors($errors ?: 'Erro ao criar cliente no Asaas.');
-        }
-
-        $customerAsaasId = $customerResponse['data']['id'];
-
-        $paymentPayload = [
-            'customer' => $customerAsaasId,
+    private function buildPaymentPayload(Request $request, array $validated, Customer $customer, string $asaasId): array
+    {
+        $payload = [
+            'customer' => $asaasId,
             'billingType' => $validated['payment_method'],
             'value' => $validated['value'],
             'dueDate' => now()->addDays(3)->toDateString(),
@@ -89,14 +138,14 @@ class CheckoutController extends Controller
 
         if ($validated['payment_method'] === 'CREDIT_CARD') {
             $expiry = explode('/', $request->credit_card_expiry);
-            $installmentCount = (int) $request->input('installment_count', 1);
+            $installments = (int) $request->installment_count;
 
-            $paymentPayload['installmentCount'] = $installmentCount;
-            if ($installmentCount > 1) {
-                $paymentPayload['installmentValue'] = round($validated['value'] / $installmentCount, 2);
+            $payload['installmentCount'] = $installments;
+            if ($installments > 1) {
+                $payload['installmentValue'] = round($validated['value'] / $installments, 2);
             }
 
-            $paymentPayload['creditCard'] = [
+            $payload['creditCard'] = [
                 'holderName' => $request->credit_card_holder_name,
                 'number' => preg_replace('/\D/', '', $request->credit_card_number),
                 'expiryMonth' => trim($expiry[0]),
@@ -104,7 +153,7 @@ class CheckoutController extends Controller
                 'ccv' => $request->credit_card_cvv,
             ];
 
-            $paymentPayload['creditCardHolderInfo'] = [
+            $payload['creditCardHolderInfo'] = [
                 'name' => $customer->name,
                 'email' => $customer->email,
                 'cpfCnpj' => preg_replace('/\D/', '', $customer->cpf_cnpj),
@@ -118,30 +167,13 @@ class CheckoutController extends Controller
             ];
         }
 
-        $paymentResponse = $paymentService->create($paymentPayload);
+        return $payload;
+    }
 
-        if (!$paymentResponse['success']) {
-            $errors = collect($paymentResponse['data']['errors'] ?? [])
-                ->pluck('description')
-                ->implode(' ');
-            return back()->withErrors($errors ?: 'Erro ao criar pagamento no Asaas.');
-        }
-
-        $paymentData = $paymentResponse['data'];
-        $billingResponse = $paymentService->getBillingInfo($paymentData['id']);
-
-        if (!$billingResponse['success']) {
-            $errors = collect($billingResponse['data']['errors'] ?? [])
-                ->pluck('description')
-                ->implode(' ');
-            return back()->withErrors($errors ?: 'Erro ao buscar informações de cobrança no Asaas.');
-        }
-
-        $billingData = $billingResponse['data'];
-
-        return view('thanks', [
-            'paymentData' => $paymentData,
-            'billingData' => $billingData
-        ]);
+    private function extractErrors(array $response): string
+    {
+        return collect($response['errors'] ?? [$response['error'] ?? 'Erro desconhecido'])
+            ->pluck('description')
+            ->implode(' ');
     }
 }
