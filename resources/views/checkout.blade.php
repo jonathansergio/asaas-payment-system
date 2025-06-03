@@ -1,66 +1,115 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
     <title>Checkout</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+</head>
+<body class="container mt-5">
+    <h1 class="mb-4">Checkout</h1>
+
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ url('/checkout') }}" novalidate>
+        @csrf
+
+        <section class="mb-4">
+            <h4>Dados do Cliente</h4>
+            @include('checkout._input', ['name' => 'name', 'label' => 'Nome', 'type' => 'text', 'required' => true])
+            @include('checkout._input', ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true])
+            @include('checkout._input', ['name' => 'cpf_cnpj', 'label' => 'CPF/CNPJ', 'type' => 'text', 'required' => true])
+            @include('checkout._input', ['name' => 'value', 'label' => 'Valor', 'type' => 'number', 'required' => true, 'step' => '0.01'])
+        </section>
+
+        <section class="mb-4">
+            <h4>Método de Pagamento</h4>
+            <div class="mb-3">
+                <label for="payment_method" class="form-label">Selecione</label>
+                <select name="payment_method" id="payment_method" class="form-select" required>
+                    <option value="BOLETO">Boleto</option>
+                    <option value="CREDIT_CARD">Cartão de Crédito</option>
+                    <option value="PIX">PIX</option>
+                </select>
+            </div>
+        </section>
+
+        <section id="card-fields" style="display: none;">
+            <fieldset class="mb-4">
+                <legend>Dados do Cartão</legend>
+                @include('checkout._input', ['name' => 'credit_card_holder_name', 'label' => 'Nome no Cartão', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'credit_card_number', 'label' => 'Número do Cartão', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'credit_card_expiry', 'label' => 'Validade (MM/AA)', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'credit_card_cvv', 'label' => 'CVV', 'type' => 'text'])
+                <div class="mb-3">
+                    <label for="installment_count" class="form-label">Parcelas</label>
+                    <select name="installment_count" id="installment_count" class="form-select"></select>
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-4">
+                <legend>Endereço</legend>
+                @include('checkout._input', ['name' => 'postal_code', 'label' => 'CEP', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'address', 'label' => 'Rua', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'address_number', 'label' => 'Número', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'city', 'label' => 'Cidade', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'state', 'label' => 'Estado', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'address_complement', 'label' => 'Complemento', 'type' => 'text'])
+                @include('checkout._input', ['name' => 'phone', 'label' => 'Telefone', 'type' => 'text'])
+            </fieldset>
+        </section>
+
+        <button type="submit" class="btn btn-primary">Finalizar Pagamento</button>
+    </form>
+
     <script>
         function toggleCardFields() {
-            const method = document.getElementById('payment_method').value;
-            const cardFields = document.getElementById('card-fields');
-            const inputs = cardFields.querySelectorAll('input, select');
-
-            const enable = method === 'CREDIT_CARD';
-            cardFields.style.display = enable ? 'block' : 'none';
-
-            inputs.forEach(input => {
-                if (enable) {
-                    input.removeAttribute('disabled');
-                    if (input.dataset.required === "true") {
-                        input.setAttribute('required', 'required');
-                    }
-                } else {
-                    input.setAttribute('disabled', 'disabled');
-                    input.removeAttribute('required');
-                }
+            const method = $('#payment_method').val();
+            const show = method === 'CREDIT_CARD';
+            $('#card-fields').toggle(show);
+            $('#card-fields').find('input, select').each(function () {
+                $(this).prop('disabled', !show);
             });
         }
 
         function updateInstallments() {
-            const value = parseFloat(document.querySelector('[name="value"]').value || 0);
-            const select = document.querySelector('[name="installment_count"]');
-            select.innerHTML = '';
-
+            const value = parseFloat($('[name="value"]').val()) || 0;
+            const select = $('#installment_count');
+            select.empty();
             if (value > 0) {
-                const maxInstallments = 12;
-                for (let i = 1; i <= maxInstallments; i++) {
-                    const installmentValue = (value / i).toFixed(2).replace('.', ',');
-                    const option = document.createElement('option');
-                    option.value = i;
-                    option.text = `${i}x de R$ ${installmentValue}`;
-                    select.appendChild(option);
+                for (let i = 1; i <= 12; i++) {
+                    const installment = (value / i).toFixed(2).replace('.', ',');
+                    select.append(`<option value="${i}">${i}x de R$ ${installment}</option>`);
                 }
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             toggleCardFields();
             updateInstallments();
-            document.getElementById('payment_method').addEventListener('change', toggleCardFields);
-            document.querySelector('[name="value"]').addEventListener('input', updateInstallments);
 
-            const cepInput = document.getElementById('postal_code');
-            cepInput.addEventListener('input', function () {
-                const cep = cepInput.value.replace(/\D/g, '');
+            $('#payment_method').change(toggleCardFields);
+            $('[name="value"]').on('input', updateInstallments);
+
+            $('#postal_code').on('input', function () {
+                const cep = $(this).val().replace(/\D/g, '');
                 if (cep.length === 8) {
                     fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                        .then(response => response.json())
+                        .then(res => res.json())
                         .then(data => {
                             if (!data.erro) {
-                                document.getElementById('address').value = data.logradouro || '';
-                                document.getElementById('city').value = data.localidade || '';
-                                document.getElementById('state').value = data.uf || '';
+                                $('#address').val(data.logradouro || '');
+                                $('#city').val(data.localidade || '');
+                                $('#state').val(data.uf || '');
                             }
                         });
                 }
@@ -73,96 +122,5 @@
             $('[name="postal_code"]').mask('00000-000');
         });
     </script>
-</head>
-<body class="container mt-5">
-<h1>Checkout</h1>
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-    </div>
-@endif
-<form method="POST" action="/checkout">
-    @csrf
-    <div class="mb-3">
-        <label>Nome</label>
-        <input type="text" name="name" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label>Email</label>
-        <input type="email" name="email" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label>CPF/CNPJ</label>
-        <input type="text" name="cpf_cnpj" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label>Valor</label>
-        <input type="number" step="0.01" name="value" class="form-control" required>
-    </div>
-    <div class="mb-3">
-        <label>Método de pagamento</label>
-        <select name="payment_method" id="payment_method" class="form-select" required>
-            <option value="BOLETO">Boleto</option>
-            <option value="CREDIT_CARD">Cartão de Crédito</option>
-            <option value="PIX">PIX</option>
-        </select>
-    </div>
-
-    <div id="card-fields" style="display: none;">
-        <h4>Dados do Cartão</h4>
-        <div class="mb-3">
-            <label>Nome</label>
-            <input type="text" name="credit_card_holder_name" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Número</label>
-            <input type="text" name="credit_card_number" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Validade</label>
-            <input type="text" name="credit_card_expiry" class="form-control" placeholder="MM/AA" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>CVV</label>
-            <input type="text" name="credit_card_cvv" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Parcelas</label>
-            <select name="installment_count" class="form-select" data-required="true"></select>
-        </div>
-
-        <h4>Endereço</h4>
-        <div class="mb-3">
-            <label>CEP</label>
-            <input type="text" name="postal_code" id="postal_code" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Rua</label>
-            <input type="text" name="address" id="address" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Número</label>
-            <input type="text" name="address_number" id="address_number" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Cidade</label>
-            <input type="text" name="city" id="city" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Estado</label>
-            <input type="text" name="state" id="state" class="form-control" data-required="true">
-        </div>
-        <div class="mb-3">
-            <label>Complemento</label>
-            <input type="text" name="address_complement" class="form-control">
-        </div>
-        <div class="mb-3">
-            <label>Telefone</label>
-            <input type="text" name="phone" class="form-control" data-required="true">
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Finalizar Pagamento</button>
-</form>
 </body>
 </html>

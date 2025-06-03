@@ -140,8 +140,8 @@ class CheckoutController extends Controller
             $expiry = explode('/', $request->credit_card_expiry);
             $installments = (int) $request->installment_count;
 
-            $payload['installmentCount'] = $installments;
             if ($installments > 1) {
+                $payload['installmentCount'] = $installments;
                 $payload['installmentValue'] = round($validated['value'] / $installments, 2);
             }
 
@@ -170,10 +170,10 @@ class CheckoutController extends Controller
         return $payload;
     }
 
-    private function extractErrors(array $response): string
+    private function extractErrors(array $response): array
     {
         return collect($response['errors'] ?? [$response['error'] ?? 'Erro desconhecido'])
             ->pluck('description')
-            ->implode(' ');
+            ->toArray();
     }
 }
