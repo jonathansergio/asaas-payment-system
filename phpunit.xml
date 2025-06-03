@@ -29,5 +29,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="ASAAS_API_KEY" value="$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzN2ViMmQ5LWNhMzAtNDQyNi1iYzhlLTE5NTFhN2NlNDRjZjo6JGFhY2hfODhhMjY1ZTAtZDk1ZC00OTEwLTgwNzAtZWZmYjQyMzUwYTgx"/>
+        <env name="ASAAS_API_URL" value="https://www.asaas.com/api/v3/"/>
     </php>
 </phpunit>
