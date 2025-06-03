@@ -1,61 +1,100 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 💳 Checkout Laravel com Integração Asaas
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Este projeto é uma aplicação Laravel 10+ que implementa um sistema de checkout com suporte a pagamentos via Boleto, Pix e Cartão de Crédito, utilizando a API do Asaas.
 
-## About Laravel
+## Requisitos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP >= 8.2
+- Composer
+- Banco de dados PostgreSQL ou MySQL
+- Node.js + NPM (se for utilizar Vite para assets)
+- Laravel >= 10
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Instalação
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Clone o repositório:
 
-## Learning Laravel
+git clone https://github.com/jonathansergio/asaas-payment-system
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+cd asaas-payment-system
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Instale as dependências do backend e frontend:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+composer install
+npm install && npm run build
 
-## Laravel Sponsors
+### Copie o arquivo de variáveis de ambiente e configure:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+cp .env.example .env
 
-### Premium Partners
+### Edite o arquivo .env com as configurações apropriadas:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+APP_NAME=Laravel Checkout
 
-## Contributing
+APP_URL=http://127.0.0.1:8000
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+DB_CONNECTION=pgsql
 
-## Code of Conduct
+DB_HOST=127.0.0.1
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+DB_PORT=5432
 
-## Security Vulnerabilities
+DB_DATABASE=laravel
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+DB_USERNAME=postgres
 
-## License
+DB_PASSWORD=postgres
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+ASAAS_API_KEY=sua_api_key_aqui
+
+ASAAS_API_URL=https://sandbox.asaas.com/api/v3
+
+### Gere a chave da aplicação:
+
+php artisan key:generate
+
+### Rode as migrations para criar as tabelas:
+
+php artisan migrate
+
+### Inicie o servidor de desenvolvimento:
+
+php artisan serve
+
+### Acesse a aplicação em http://127.0.0.1:8000/checkout
+
+## Executando os testes
+
+### Crie um banco de dados de testes:
+
+CREATE DATABASE laravel_test;
+
+### Copie o arquivo .env para criar um ambiente de teste:
+
+cp .env .env.testing
+
+### Edite o .env.testing e altere o banco:
+
+DB_DATABASE=laravel_test
+
+### Execute os testes:
+
+php artisan test
+
+## Estrutura principal
+
+- `app/Http/Controllers/CheckoutController.php` – Controlador principal
+- `app/Services/Asaas/CustomerService.php` – Gerenciamento de clientes
+- `app/Services/Asaas/PaymentService.php` – Pagamentos
+- `resources/views/checkout.blade.php` – Formulário de pagamento
+- `resources/views/thanks.blade.php` – Página de agradecimento
+- `tests/Feature/CheckoutTest.php` – Testes do fluxo principal
+
+## Recursos
+
+- Criação automática de clientes no Asaas
+- Pagamento via cartão, boleto ou pix
+- Suporte a parcelamento
+- Validações robustas
+- Mensagens de erro formatadas da API Asaas
+- Logs e tratamento centralizado de falhas na API
