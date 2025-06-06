@@ -8,6 +8,7 @@
         name="{{ $name }}"
         id="{{ $id }}"
         value="{{ old($name) }}"
+        placeholder="{{ $placeholder ?? '' }}"
         class="form-control @error($name) is-invalid @enderror"
         {{ !empty($required) ? 'required' : '' }}
         {{ isset($step) ? "step=$step" : '' }}

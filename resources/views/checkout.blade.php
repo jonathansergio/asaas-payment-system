@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 </head>
 <body class="container mt-5">
-    <h1 class="mb-4">Checkout</h1>
+    <h1 class="mb-5">Checkout</h1>
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -24,51 +24,117 @@
         @csrf
 
         <section class="mb-4">
-            <h4>Dados do Cliente</h4>
-            @include('checkout._input', ['name' => 'name', 'label' => 'Nome', 'type' => 'text', 'required' => true])
-            @include('checkout._input', ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true])
-            @include('checkout._input', ['name' => 'cpf_cnpj', 'label' => 'CPF/CNPJ', 'type' => 'text', 'required' => true])
-            @include('checkout._input', ['name' => 'value', 'label' => 'Valor', 'type' => 'number', 'required' => true, 'step' => '0.01'])
-        </section>
+            <div class="row">
+                <div class="col-md-12">
+                    @include('checkout._input', ['name' => 'name', 'label' => 'Nome', 'type' => 'text',
+                        'required' => true])
+                </div>
+            </div>
 
-        <section class="mb-4">
-            <h4>Método de Pagamento</h4>
-            <div class="mb-3">
-                <label for="payment_method" class="form-label">Selecione</label>
-                <select name="payment_method" id="payment_method" class="form-select" required>
-                    <option value="BOLETO">Boleto</option>
-                    <option value="CREDIT_CARD">Cartão de Crédito</option>
-                    <option value="PIX">PIX</option>
-                </select>
+            <div class="row">
+                <div class="col-md-6">
+                    @include('checkout._input', ['name' => 'email', 'label' => 'Email', 'type' => 'email',
+                        'required' => true])
+                </div>
+                <div class="col-md-6">
+                    @include('checkout._input', ['name' => 'cpf_cnpj', 'label' => 'CPF/CNPJ', 'type' => 'number',
+                        'required' => true])
+                </div>
+            </div>
+
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    @include('checkout._input', ['name' => 'value', 'label' => 'Valor', 'type' => 'number',
+                        'required' => true, 'step' => '0.01'])
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label"><strong>Método de Pagamento</strong></label>
+                        <select name="payment_method" id="payment_method" class="form-select" required>
+                            <option value="BOLETO">Boleto</option>
+                            <option value="CREDIT_CARD">Cartão de Crédito</option>
+                            <option value="PIX">PIX</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section id="card-fields" style="display: none;">
             <fieldset class="mb-4">
-                <legend>Dados do Cartão</legend>
-                @include('checkout._input', ['name' => 'credit_card_holder_name', 'label' => 'Nome no Cartão', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'credit_card_number', 'label' => 'Número do Cartão', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'credit_card_expiry', 'label' => 'Validade (MM/AA)', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'credit_card_cvv', 'label' => 'CVV', 'type' => 'text'])
-                <div class="mb-3">
-                    <label for="installment_count" class="form-label">Parcelas</label>
-                    <select name="installment_count" id="installment_count" class="form-select"></select>
+                <legend class="mb-3">Dados do Cartão</legend>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        @include('checkout._input', ['name' => 'credit_card_holder_name', 'label' => 'Nome',
+                            'type' => 'text'])
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'credit_card_number', 'label' => 'Número',
+                            'type' => 'text'])
+                    </div>
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'credit_card_expiry', 'label' => 'Validade',
+                            'type' => 'text', 'placeholder' => '00/00'])
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'credit_card_cvv', 'label' => 'CVV', 'type' => 'text'])
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="installment_count" class="form-label">Parcelas</label>
+                            <select name="installment_count" id="installment_count" class="form-select"></select>
+                        </div>
+                    </div>
                 </div>
             </fieldset>
 
             <fieldset class="mb-4">
-                <legend>Endereço</legend>
-                @include('checkout._input', ['name' => 'postal_code', 'label' => 'CEP', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'address', 'label' => 'Rua', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'address_number', 'label' => 'Número', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'city', 'label' => 'Cidade', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'state', 'label' => 'Estado', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'address_complement', 'label' => 'Complemento', 'type' => 'text'])
-                @include('checkout._input', ['name' => 'phone', 'label' => 'Telefone', 'type' => 'text'])
+                <legend class="mb-3">Endereço</legend>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'postal_code', 'label' => 'CEP', 'type' => 'text'])
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'address', 'label' => 'Rua', 'type' => 'text'])
+                    </div>
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'address_number', 'label' => 'Número', 'type' => 'text'])
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'city', 'label' => 'Cidade', 'type' => 'text'])
+                    </div>
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'state', 'label' => 'Estado', 'type' => 'text'])
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'address_complement', 'label' => 'Complemento',
+                        'type' => 'text'])
+                    </div>
+                    <div class="col-md-6">
+                        @include('checkout._input', ['name' => 'phone', 'label' => 'Telefone', 'type' => 'text'])
+                    </div>
+                </div>
             </fieldset>
         </section>
 
-        <button type="submit" class="btn btn-primary">Finalizar Pagamento</button>
+        <button type="submit" class="btn btn-primary mb-5">Finalizar Pagamento</button>
     </form>
 
     <script>
